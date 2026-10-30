@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111b19" />
+    <title>Stormfall — Last light. Last one standing.</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="world" aria-label="Stormfall 3D game world"></canvas>
+    <div id="vignette"></div>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Stormfall home"><span class="brand-icon">ϟ</span> STORMFALL<span class="alpha">PLAY ALPHA</span></a>
+      <div class="top-right"><span class="live-dot"></span> SOLO SURVIVAL <span class="divider"></span><button id="sound" aria-label="Toggle sound">SOUND OFF</button><button id="help" aria-label="Show controls">?</button></div>
+    </header>
+    <main id="menu">
+      <div class="eyebrow"><span></span> DROP IN. STAND OUT.</div>
+      <h1>THE STORM<br>TAKES <em>EVERYTHING.</em></h1>
+      <p class="intro">Make sure it doesn't take you. Gear up, find your ground,<br class="desktop"> and be the last one standing on the island.</p>
+      <div class="mode-card"><div class="mode-icon">◈</div><div><span class="small-label">YOUR NEXT DROP</span><h3>Solo survival <span>•</span> The Lowlands</h3></div><span class="mode-tag">VS. BOTS</span></div>
+      <button id="play" class="play-button">PLAY NOW <span>↗</span></button>
+      <div class="play-note"><span class="live-dot"></span> NO DOWNLOAD. JUST DROP IN.</div>
+    </main>
+    <aside class="island-note" id="island-note"><div class="location-dot">⌖</div><div><span class="small-label">EXPLORE THE ISLAND</span><strong>The Lowlands</strong><span class="coordinates">38° 24′ N &nbsp; 120° 36′ W</span></div></aside>
+    <footer id="menu-footer"><span>A LITTLE COURAGE. A LOT OF HIGH GROUND.</span><span>ORIGINAL BROWSER BATTLE ARENA <span class="footer-plus">+</span></span></footer>
+    <section id="hud" class="hidden">
+      <div id="compass">W <span>NW</span> N <span>NE</span> E</div>
+      <div class="match-info"><span class="small-label">THE LOWLANDS</span><div><b id="alive">9</b> ALIVE <span>•</span> <b id="kills">0</b> ELIMS</div><div class="storm-clock">◷ &nbsp; STORM IN <b id="storm-time">0:40</b></div></div>
+      <canvas id="minimap" width="180" height="180" aria-label="Island minimap"></canvas>
+      <div id="crosshair"><i></i><i></i><i></i><i></i></div>
+      <div id="hitmarker">×</div><div id="damage-flash"></div>
+      <div id="notification"></div>
+      <div class="health-panel"><div class="player-name"><span>◈</span> YOU <small>LVL 01</small></div><div class="stat-line"><span>◇</span><div class="bar shield"><i id="shield-bar"></i></div><b id="shield-number">50</b></div><div class="stat-line"><span>+</span><div class="bar health"><i id="health-bar"></i></div><b id="health-number">100</b></div></div>
+      <div class="weapon-panel"><div class="ammo"><b id="ammo">30</b><span>/ <span id="reserve">180</span></span></div><span class="small-label" id="weapon-name">RANGER ASSAULT RIFLE</span><div class="slots"><div class="slot selected"><span>1</span><strong>━╤═</strong><small>RANGER</small></div><div class="slot"><span>2</span><strong>✚</strong><small id="med-count">MEDKIT × 2</small></div><div class="slot"><span>Q</span><strong>▥</strong><small id="wall-count">WALL × 8</small></div></div></div>
+      <div class="hud-controls"><kbd>W A S D</kbd> MOVE &nbsp; <kbd>SPACE</kbd> JUMP &nbsp; <kbd>R</kbd> RELOAD &nbsp; <kbd>Q</kbd> BUILD &nbsp; <kbd>2</kbd> HEAL &nbsp; <kbd>ESC</kbd> PAUSE</div>
+      <div id="storm-warning" class="hidden">ϟ YOU'RE IN THE STORM — GET TO THE CIRCLE</div>
+    </section>
+    <div id="overlay" class="hidden"><div class="overlay-card"><span class="eyebrow" id="overlay-label">TAKE A BREATHER</span><h2 id="overlay-title">Paused.</h2><p id="overlay-description">Your island will be right here.</p><button id="resume" class="play-button">BACK TO IT <span>↗</span></button><button id="restart" class="secondary-button">NEW MATCH</button><div class="controls-detail">WASD to move · Mouse to look · Click to fire<br>Shift to sprint · Space to jump · R to reload<br>Q to build cover · 2 to use medkit · Esc to pause</div></div></div>
+    <div id="unsupported" class="hidden">This game needs a desktop browser with WebGL and a keyboard & mouse.</div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
