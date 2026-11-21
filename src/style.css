@@ -2,3 +2,15 @@
 /* Draw the launch arrow without relying on a font's symbol coverage. */
 .play-button span{font-size:0;width:13px;height:13px;border-top:2px solid currentColor;border-right:2px solid currentColor;position:relative;display:block}
 .play-button span::after{content:'';position:absolute;width:18px;height:2px;background:currentColor;right:-3px;top:4px;transform:rotate(-45deg)}
+
+/* Weapon silhouettes remain readable at gameplay HUD sizes. */
+.slot svg{width:67px;height:32px;align-self:center;fill:#dee7d5;filter:drop-shadow(0 2px 1px #0005)}
+.slot.selected svg{fill:#dfff82}
+.slot{width:87px;height:76px}
+.slot small{display:flex;justify-content:space-between;padding:0 7px;letter-spacing:.6px}
+.slot-ammo{font-weight:600;color:#eef9d7}
+.equipment{display:flex;gap:14px;justify-content:flex-end;font-size:8px;letter-spacing:1px;color:#dce7cf;margin-top:11px}
+#kill-feed{position:absolute;left:35px;top:100px;display:flex;flex-direction:column;gap:6px;font-size:10px;letter-spacing:1px}
+#kill-feed>div{background:#122a32b3;border-left:2px solid #dfff82;padding:8px 12px;max-width:320px}
+#crosshair.aiming{transform:translate(-50%,-50%) scale(.65)}
+@media(max-width:800px){#kill-feed{left:15px;top:75px;font-size:8px}.slot{width:67px}.slot svg{width:58px}.hud-controls{font-size:5px;letter-spacing:0}}
