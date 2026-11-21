@@ -88,8 +88,15 @@ function equipActor(actor,index){
 }
 const player=character('#697f65',true);player.root.position.set(0,groundY(0,28),28);
 player.label='YOU';equipActor(player,0);
+const BOT_SKILLS=[
+  {name:'ROOKIE',spread:.15,pause:1.15,reaction:1.4,speed:.7},
+  {name:'REGULAR',spread:.075,pause:.65,reaction:.85,speed:.85},
+  {name:'VETERAN',spread:.04,pause:.3,reaction:.5,speed:1},
+];
+// Four rookies, three regulars and one veteran, spread around the island.
+const BOT_ROSTER=[0,1,0,1,0,2,0,1];
 const bots=[];const spawnPoints=[[-36,-27],[35,-8],[-39,26],[55,40],[-19,-57],[40,-62],[-65,-10],[12,65]];
-for(let i=0;i<8;i++){const b=character(['#a46248','#7b688d','#8a8d4e','#577986'][i%4]);b.label=`RIVAL ${i+1}`;equipActor(b,i%WEAPONS.length);b.shield=50;b.ammo=WEAPONS[b.weaponIndex].capacity;b.reloadTimer=0;b.root.position.set(spawnPoints[i][0],groundY(...spawnPoints[i]),spawnPoints[i][1]);b.cooldown=2+random()*4;bots.push(b);}
+for(let i=0;i<8;i++){const b=character(['#a46248','#7b688d','#8a8d4e','#577986'][i%4]);b.skill=BOT_SKILLS[BOT_ROSTER[i]];b.label=`${b.skill.name} ${i+1}`;equipActor(b,i%WEAPONS.length);b.shield=50;b.ammo=WEAPONS[b.weaponIndex].capacity;b.reloadTimer=0;b.root.position.set(spawnPoints[i][0],groundY(...spawnPoints[i]),spawnPoints[i][1]);b.cooldown=2+random()*4;bots.push(b);}
 const combatants=[player,...bots];
 const stormMaterial=new THREE.MeshBasicMaterial({color:'#a273dc',transparent:true,opacity:.17,side:THREE.DoubleSide,depthWrite:false});
 const storm=mesh(new THREE.CylinderGeometry(1,1,65,96,1,true),stormMaterial);storm.position.y=20;storm.castShadow=false;
@@ -144,7 +151,7 @@ function resume(){canvas.requestPointerLock?.();state='playing';$('overlay').cla
 function start(){health=100;shield=50;meds=2;walls=8;kills=0;elapsed=0;stormRadius=112;fireCooldown=reloadTimer=healTimer=0;yaw=0;pitch=-.1;vertical=0;grounded=true;keys.clear();mouseDown=false;aiming=false;weaponIndex=0;
 WEAPONS.forEach((w,i)=>loadout[i]={ammo:w.capacity,reserve:w.reserve});({ammo,reserve}=loadout[0]);equipActor(player,0);
 player.alive=true;player.health=100;player.root.position.set(0,groundY(0,28),28);player.root.visible=true;player.root.rotation.y=0;
-for(let i=0;i<bots.length;i++){const b=bots[i];b.health=100;b.shield=50;b.alive=true;b.root.visible=true;b.target=null;b.targetTimer=0;b.reloadTimer=0;b.ammo=WEAPONS[b.weaponIndex].capacity;b.recoil=0;b.flashTime=0;b.root.position.set(spawnPoints[i][0],groundY(...spawnPoints[i]),spawnPoints[i][1]);b.cooldown=.8+random()*1.2;}
+for(let i=0;i<bots.length;i++){const b=bots[i];b.health=100;b.shield=50;b.alive=true;b.root.visible=true;b.target=null;b.targetTimer=0;b.reloadTimer=0;b.ammo=WEAPONS[b.weaponIndex].capacity;b.recoil=0;b.flashTime=0;b.root.position.set(spawnPoints[i][0],groundY(...spawnPoints[i]),spawnPoints[i][1]);b.cooldown=2+b.skill.reaction+random()*2;}
 $('kill-feed').replaceChildren();
 for(const p of pickups){p.active=true;p.g.visible=true;}
 for(const child of [...buildGroup.children]){child.traverse(o=>o.geometry?.dispose());buildGroup.remove(child);}
@@ -189,7 +196,7 @@ function damageActor(victim,amount,attacker=null,stormHit=false){
     if(!stormHit){const absorb=Math.min(victim.shield,amount);victim.shield-=absorb;amount-=absorb;}
     victim.health=Math.max(0,victim.health-amount);
     // An attacked rival can retaliate against any living shooter.
-    if(attacker?.alive){victim.target=attacker;victim.targetTimer=.75;}
+    if(attacker?.alive&&victim.target!==attacker){victim.target=attacker;victim.targetTimer=victim.skill.reaction;victim.cooldown=Math.max(victim.cooldown,victim.skill.reaction);}
   }
   if(attacker===player){hitTimer=.17;tone(700,.05,'triangle',.015);}
   if(victim.health<=0)eliminate(victim,attacker);
@@ -261,9 +268,11 @@ function updateBots(dt,playerMoving){
     bot.targetTimer-=dt;
     if(bot.targetTimer<=0||!bot.target?.alive){
       const eye=bp.clone().add(new THREE.Vector3(0,1.7,0));
+      const previousTarget=bot.target;
       bot.target=chooseTarget(bot,combatants,candidate=>
         !occluded(eye,candidate.root.position.clone().add(new THREE.Vector3(0,1.5,0))));
-      bot.targetTimer=.55+random()*.3;
+      bot.targetTimer=bot.skill.reaction+random()*.3;
+      if(bot.target!==previousTarget)bot.cooldown=Math.max(bot.cooldown,bot.skill.reaction);
     }
     const target=bot.target;
     if(!target)continue;
@@ -281,7 +290,7 @@ function updateBots(dt,playerMoving){
       const strafe=Math.sin(elapsed*.7+bots.indexOf(bot)*1.7)*1.5;
       vx=dx/dist*advance+dz/dist*strafe;vz=dz/dist*advance-dx/dist*strafe;
     }
-    moveActor(bot,vx*dt,vz*dt);bp.y=groundY(bp.x,bp.z);
+    moveActor(bot,vx*dt*bot.skill.speed,vz*dt*bot.skill.speed);bp.y=groundY(bp.x,bp.z);
     bot.legs.forEach((leg,i)=>leg.rotation.x=Math.sin(bot.phase+i*Math.PI)*.45);
     if(bot.reloadTimer>0){
       bot.reloadTimer=Math.max(0,bot.reloadTimer-dt);
@@ -296,11 +305,11 @@ function updateBots(dt,playerMoving){
         const from=bot.muzzle.getWorldPosition(new THREE.Vector3());
         const forward=aim.sub(from).normalize();
         const movingTarget=target===player?playerMoving:true;
-        const spread=spec.spread+(movingTarget?.032:.018);
+        const spread=spec.spread+bot.skill.spread*(movingTarget?1.25:1);
         resolveShot(bot,from,forward,spec,spread);
         bot.ammo--;
         // Short bursts and pauses leave time to reposition; all opponents use the same rules.
-        bot.cooldown=spec.interval+(bot.ammo%3===0?.45+random()*.4:random()*.12);
+        bot.cooldown=spec.interval+bot.skill.pause+random()*.35;
         if(bot.ammo<=0)bot.reloadTimer=spec.reload;
       }else bot.targetTimer=0;
     }
