@@ -97,6 +97,8 @@ const BOT_SKILLS=[
 const BOT_ROSTER=[0,1,0,1,0,2,0,1];
 const bots=[];const spawnPoints=[[-36,-27],[35,-8],[-39,26],[55,40],[-19,-57],[40,-62],[-65,-10],[12,65]];
 for(let i=0;i<8;i++){const b=character(['#a46248','#7b688d','#8a8d4e','#577986'][i%4]);b.skill=BOT_SKILLS[BOT_ROSTER[i]];b.label=`${b.skill.name} ${i+1}`;equipActor(b,i%WEAPONS.length);b.shield=50;b.ammo=WEAPONS[b.weaponIndex].capacity;b.reloadTimer=0;b.root.position.set(spawnPoints[i][0],groundY(...spawnPoints[i]),spawnPoints[i][1]);b.cooldown=2+random()*4;bots.push(b);}
+// One rookie and one regular hunt the player without needing to be provoked.
+bots[1].huntTarget=player;bots[2].huntTarget=player;
 const combatants=[player,...bots];
 const stormMaterial=new THREE.MeshBasicMaterial({color:'#a273dc',transparent:true,opacity:.17,side:THREE.DoubleSide,depthWrite:false});
 const storm=mesh(new THREE.CylinderGeometry(1,1,65,96,1,true),stormMaterial);storm.position.y=20;storm.castShadow=false;

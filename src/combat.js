@@ -1,5 +1,8 @@
-/** Every living participant is an opponent, with no special preference for the human. */
+/** Hunters pursue their assigned opponent; other bots prefer nearby visible rivals. */
 export function chooseTarget(shooter, combatants, canSee = () => true, sightRange = 52) {
+  if (shooter.huntTarget?.alive && shooter.huntTarget !== shooter && combatants.includes(shooter.huntTarget)) {
+    return shooter.huntTarget;
+  }
   let closest = null;
   let visible = null;
   let closestDistance = Infinity;

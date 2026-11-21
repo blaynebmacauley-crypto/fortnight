@@ -5,6 +5,14 @@ import { chooseTarget, spreadDirection } from '../src/combat.js';
 
 const actor=(name,x,z,alive=true)=>({name,alive,root:{position:new Vector3(x,0,z)}});
 
+test('a hunter pursues its assigned opponent before being attacked, even beyond sight range',()=>{
+  const bot=actor('hunter',0,0),human=actor('human',80,0),rival=actor('rival',5,0);
+  bot.huntTarget=human;
+  assert.equal(chooseTarget(bot,[bot,human,rival],()=>false),human);
+  human.alive=false;
+  assert.equal(chooseTarget(bot,[bot,human,rival]),rival);
+});
+
 test('a bot selects a nearer rival rather than pursuing the human',()=>{
   const bot=actor('shooter',0,0),human=actor('human',30,0),rival=actor('rival',5,0);
   assert.equal(chooseTarget(bot,[human,bot,rival]),rival);

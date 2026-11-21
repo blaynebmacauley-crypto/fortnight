@@ -15,7 +15,7 @@ Open the development server in a desktop browser with WebGL, a keyboard, and a m
 
 ## Play
 
-Outlast eight bot rivals in a free for all: four rookies, three regulars, and one veteran. Rookies react slowly, miss more shots, move more slowly, and pause longer between shots; veterans are more capable. Difficulty applies equally when fighting the player or other bots. Rivals select nearby visible opponents, fight each other, and retaliate against whoever shoots them. Bot eliminations update the alive count and kill feed without giving the player kill credit. Stay inside the purple storm circle, collect glowing supplies, and use buildings or placed walls for cover. The storm starts closing after 40 seconds. Eliminate or outlast every rival to win.
+Outlast eight bot rivals in a free for all: four rookies, three regulars, and one veteran. Rookies react slowly, miss more shots, move more slowly, and pause longer between shots; veterans are more capable. Difficulty applies equally when fighting the player or other bots. Two rivals (one rookie and one regular) actively pursue the player from the start, without waiting to be shot. The other six select nearby visible opponents. All rivals can fight each other and retaliate against whoever shoots them; hunters still respect cover, firing range, and their difficulty settings. Bot eliminations update the alive count and kill feed without giving the player kill credit. Stay inside the purple storm circle, collect glowing supplies, and use buildings or placed walls for cover. The storm starts closing after 40 seconds. Eliminate or outlast every rival to win.
 
 | Input | Action |
 | --- | --- |
