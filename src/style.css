@@ -24,3 +24,6 @@
 #drop-panel{left:35px;bottom:155px;transform:none;width:350px;padding:16px}
 #drop-panel h2{font-size:26px}
 @media(max-width:800px){#drop-panel{left:15px;bottom:155px;width:290px}#drop-panel h2{font-size:23px}}
+#flight-controls{display:none;position:absolute;bottom:23px;width:100%;text-align:center;color:#ecffd4;font-size:10px;font-weight:700;letter-spacing:1.5px;text-shadow:0 1px 4px #000}
+body[data-flight] #flight-controls{display:block}
+body[data-flight] .weapon-panel,body[data-flight] .hud-controls{display:none}

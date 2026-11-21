@@ -19,6 +19,14 @@ export function findLandingSpot(x, z, canLand) {
   return null;
 }
 
+export function approachClearLanding(x, z, dt, canLand) {
+  const spot = findLandingSpot(x, z, canLand);
+  if (!spot) return { x, z };
+  const distance = Math.hypot(spot.x - x, spot.z - z);
+  const fraction = distance > 0 ? Math.min(1, 22 * dt / distance) : 0;
+  return { x: x + (spot.x - x) * fraction, z: z + (spot.z - z) * fraction };
+}
+
 export function createDropBus() {
   const bus = new THREE.Group();
   const blue = new THREE.MeshStandardMaterial({ color: '#2e809c', metalness: .35, roughness: .5 });

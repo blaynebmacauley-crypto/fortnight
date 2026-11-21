@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { DROP, busPositionAt, findLandingSpot, createDropBus, createGlider } from './drop.js';
+import { DROP, busPositionAt, findLandingSpot, approachClearLanding, createDropBus, createGlider } from './drop.js';
 import { WEAPONS, createWeaponModel } from './weapons.js';
 import { chooseTarget, spreadDirection } from './combat.js';
 import { MAP, STORM, BOT_ROSTER, MINIMAP_SCALE, stormRadiusAt, stormTimeRemaining } from './match.js';
@@ -181,10 +181,14 @@ function beginDrop(){
   $('crosshair').classList.add('hidden');$('storm-warning').classList.add('hidden');
   $('notification').textContent='';noticeTimer=0;
   $('storm-time').textContent='1:30';
+  document.body.dataset.flight='bus';
+  $('flight-controls').textContent='SPACE · JUMP FROM BUS     ESC · PAUSE';
 }
 function ejectFromBus(){
   if(dropPhase!=='bus'||state!=='playing')return;
   dropPhase='gliding';player.root.position.copy(dropBus.position);player.root.position.y-=3;
+  document.body.dataset.flight='gliding';
+  $('flight-controls').textContent='WASD · STEER GLIDER     MOUSE · LOOK     ESC · PAUSE';
   player.root.visible=true;glider.visible=true;pitch=-.35;
   for(const bot of bots)bot.root.visible=true;
   $('drop-jump').classList.add('hidden');tone(350,.2,'triangle',.03);
@@ -212,6 +216,11 @@ function updateDrop(dt){
     const radius=Math.hypot(p.x,p.z),limit=MAP.radius-18;
     if(radius>limit){p.x*=limit/radius;p.z*=limit/radius;}
     p.y-=DROP.descentSpeed*dt;player.root.rotation.y=yaw;
+    // Guide the glider away before it passes through a roof or tree trunk.
+    if(p.y<=groundY(p.x,p.z)+16&&!canStand(p.x,p.z,groundY(p.x,p.z))){
+      const safe=approachClearLanding(p.x,p.z,dt,(x,z)=>canStand(x,z,groundY(x,z)));
+      p.x=safe.x;p.z=safe.z;p.y=Math.max(p.y,groundY(p.x,p.z)+16);
+    }
     $('drop-title').textContent='GLIDE INTO THE FIGHT';
     $('drop-detail').textContent=`WASD to steer · ${Math.max(0,Math.ceil(p.y-groundY(p.x,p.z)))}m to ground · Weapons unlock on landing`;
     player.legs.forEach((leg,i)=>leg.rotation.x=Math.sin(busElapsed*2+i)*.12);
@@ -223,6 +232,7 @@ function updateDrop(dt){
       const spot=findLandingSpot(p.x,p.z,(x,z)=>canStand(x,z,groundY(x,z)));
       if(spot){
         p.set(spot.x,groundY(spot.x,spot.z),spot.z);dropPhase='ground';vertical=0;grounded=true;
+        delete document.body.dataset.flight;
         glider.visible=false;dropBus.visible=false;player.gun.visible=true;keys.delete('Space');
         $('drop-panel').classList.add('hidden');$('crosshair').classList.remove('hidden');
         camera.fov=56;updateCamera(1);notice('TOUCHDOWN · THE MATCH IS ON\nStay inside the circle. Outlast every rival.');
@@ -342,7 +352,12 @@ function animateWeapon(actor,dt){
 }
 function updateCamera(dt){const p=player.root.position,lookPitch=pitch+player.recoil*.18,forward=new THREE.Vector3(-Math.sin(yaw)*Math.cos(lookPitch),Math.sin(lookPitch),-Math.cos(yaw)*Math.cos(lookPitch));const pivot=new THREE.Vector3(p.x,p.y+1.85,p.z);const desired=pivot.clone().addScaledVector(forward,aiming?-3.4:-5.6).add(new THREE.Vector3(Math.cos(yaw)*1.25,.4,-Math.sin(yaw)*1.25));desired.y=Math.max(desired.y,groundY(desired.x,desired.z)+.65);camera.position.lerp(desired,Math.min(1,dt*16));camera.lookAt(pivot.clone().addScaledVector(forward,65));camera.fov=THREE.MathUtils.lerp(camera.fov,aiming?43:56,Math.min(1,dt*12));camera.updateProjectionMatrix();$('crosshair').classList.toggle('aiming',aiming);}
 const map=$('minimap').getContext('2d');
-function drawMap(){map.clearRect(0,0,180,180);map.fillStyle='#679e9e';map.fillRect(0,0,180,180);map.fillStyle='#6c8e46';map.beginPath();map.arc(90,90,82,0,Math.PI*2);map.fill();map.strokeStyle='#bdad7e';map.lineWidth=3;map.lineWidth=2;map.beginPath();for(let z=-63;z<57;z+=3){const x=7+Math.sin(z*.025)*5;const px=90+x*MINIMAP_SCALE,pz=90+z*MINIMAP_SCALE;if(z===-63)map.moveTo(px,pz);else map.lineTo(px,pz);}map.stroke();map.beginPath();for(let x=-160;x<170;x+=4){const z=70+Math.sin(x*.02)*10;const px=90+x*MINIMAP_SCALE,pz=90+z*MINIMAP_SCALE;if(x===-160)map.moveTo(px,pz);else map.lineTo(px,pz);}map.stroke();for(const o of obstacles){map.fillStyle='#b7b498';map.fillRect(90+o.x*MINIMAP_SCALE-o.w*(MINIMAP_SCALE/2),90+o.z*MINIMAP_SCALE-o.d*(MINIMAP_SCALE/2),Math.max(1,o.w*MINIMAP_SCALE),Math.max(1,o.d*MINIMAP_SCALE));}map.strokeStyle='#e3c1ff';map.lineWidth=2;map.beginPath();map.arc(90,90,stormRadius*MINIMAP_SCALE,0,Math.PI*2);map.stroke();map.fillStyle='#f5b39d';for(const b of bots){if(b.alive){map.beginPath();map.arc(90+b.root.position.x*MINIMAP_SCALE,90+b.root.position.z*MINIMAP_SCALE,2,0,Math.PI*2);map.fill();}}map.save();map.translate(90+player.root.position.x*MINIMAP_SCALE,90+player.root.position.z*MINIMAP_SCALE);map.rotate(-yaw);map.fillStyle='#fffcd6';map.beginPath();map.moveTo(0,-6);map.lineTo(4,4);map.lineTo(0,2);map.lineTo(-4,4);map.closePath();map.fill();map.restore();}
+function drawMap(){map.clearRect(0,0,180,180);map.fillStyle='#679e9e';map.fillRect(0,0,180,180);map.fillStyle='#6c8e46';map.beginPath();map.arc(90,90,82,0,Math.PI*2);map.fill();map.strokeStyle='#bdad7e';map.lineWidth=3;map.lineWidth=2;map.beginPath();for(let z=-63;z<57;z+=3){const x=7+Math.sin(z*.025)*5;const px=90+x*MINIMAP_SCALE,pz=90+z*MINIMAP_SCALE;if(z===-63)map.moveTo(px,pz);else map.lineTo(px,pz);}map.stroke();map.beginPath();for(let x=-160;x<170;x+=4){const z=70+Math.sin(x*.02)*10;const px=90+x*MINIMAP_SCALE,pz=90+z*MINIMAP_SCALE;if(x===-160)map.moveTo(px,pz);else map.lineTo(px,pz);}map.stroke();for(const o of obstacles){map.fillStyle='#b7b498';map.fillRect(90+o.x*MINIMAP_SCALE-o.w*(MINIMAP_SCALE/2),90+o.z*MINIMAP_SCALE-o.d*(MINIMAP_SCALE/2),Math.max(1,o.w*MINIMAP_SCALE),Math.max(1,o.d*MINIMAP_SCALE));}map.strokeStyle='#e3c1ff';map.lineWidth=2;map.beginPath();map.arc(90,90,stormRadius*MINIMAP_SCALE,0,Math.PI*2);map.stroke();map.fillStyle='#f5b39d';for(const b of bots){if(b.alive){map.beginPath();map.arc(90+b.root.position.x*MINIMAP_SCALE,90+b.root.position.z*MINIMAP_SCALE,2,0,Math.PI*2);map.fill();}}if(dropPhase!=='ground'){
+  const start=busPositionAt(0),end=busPositionAt(DROP.rideTime);
+  map.save();map.strokeStyle='#f3f5b5';map.lineWidth=1.5;map.setLineDash([4,3]);
+  map.beginPath();map.moveTo(90+start.x*MINIMAP_SCALE,90+start.z*MINIMAP_SCALE);map.lineTo(90+end.x*MINIMAP_SCALE,90+end.z*MINIMAP_SCALE);map.stroke();map.setLineDash([]);
+  map.fillStyle='#dfff82';map.fillRect(90+dropBus.position.x*MINIMAP_SCALE-3,90+dropBus.position.z*MINIMAP_SCALE-5,6,10);map.restore();
+}map.save();map.translate(90+player.root.position.x*MINIMAP_SCALE,90+player.root.position.z*MINIMAP_SCALE);map.rotate(-yaw);map.fillStyle='#fffcd6';map.beginPath();map.moveTo(0,-6);map.lineTo(4,4);map.lineTo(0,2);map.lineTo(-4,4);map.closePath();map.fill();map.restore();}
 let mapTimer=0;
 function updateBots(dt,playerMoving){
   for(const bot of bots){
