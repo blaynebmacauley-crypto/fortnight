@@ -14,3 +14,13 @@
 #kill-feed>div{background:#122a32b3;border-left:2px solid #dfff82;padding:8px 12px;max-width:320px}
 #crosshair.aiming{transform:translate(-50%,-50%) scale(.65)}
 @media(max-width:800px){#kill-feed{left:15px;top:75px;font-size:8px}.slot{width:67px}.slot svg{width:58px}.hud-controls{font-size:5px;letter-spacing:0}}
+
+#drop-panel{position:absolute;left:50%;bottom:125px;transform:translateX(-50%);width:min(500px,90vw);text-align:center;padding:22px;background:#142b2ce8;border:1px solid #dfff8250;border-radius:6px;box-shadow:0 10px 45px #0004}
+#drop-panel h2{font-family:'Barlow Condensed',Impact,sans-serif;font-size:32px;letter-spacing:1px;margin:10px 0;color:#e9ffb3}
+#drop-panel p{font-size:12px;color:#d0ddc5;line-height:1.6;margin:8px 0 15px}
+#drop-jump{pointer-events:auto;background:#dfff82;border:0;border-radius:3px;padding:13px 21px;color:#1c3023;font-weight:800;font-size:12px;letter-spacing:1px}
+#drop-jump kbd{background:#263c2920;border-color:#263c2930;margin-right:9px}
+/* Keep flight instructions beside the bus and glider. */
+#drop-panel{left:35px;bottom:155px;transform:none;width:350px;padding:16px}
+#drop-panel h2{font-size:26px}
+@media(max-width:800px){#drop-panel{left:15px;bottom:155px;width:290px}#drop-panel h2{font-size:23px}}

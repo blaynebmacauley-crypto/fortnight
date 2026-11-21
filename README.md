@@ -15,6 +15,8 @@ Open the development server in a desktop browser with WebGL, a keyboard, and a m
 
 ## Play
 
+Each round starts on a balloon-lifted drop bus flying over the island. Press **Space** to jump when you choose, or wait for the automatic drop after 18 seconds. A glider opens automatically; use **WASD** to steer to your landing spot. Weapons unlock when you land. Combat and the storm clock begin after touchdown, and pause/resume also works during the flight. New matches reset the bus route.
+
 Outlast twenty bot rivals in a free for all: twelve rookies, six regulars, and two veterans. The island has a 220-unit playable radius (over three times the previous area), with six extra settlements and supplies spread across the expanded map. Rookies react slowly, miss more shots, move more slowly, and pause longer between shots; veterans are more capable. Difficulty applies equally when fighting the player or other bots. Two rivals (one rookie and one regular) actively pursue the player from the start, without waiting to be shot. The other eighteen select nearby visible opponents. All rivals can fight each other and retaliate against whoever shoots them; hunters still respect cover, firing range, and their difficulty settings. Bot eliminations update the alive count and kill feed without giving the player kill credit. Stay inside the purple storm circle, collect glowing supplies, and use buildings or placed walls for cover. The storm starts closing after 90 seconds and takes about eight more minutes to reach its final circle. Eliminate or outlast every rival to win.
 
 | Input | Action |
@@ -25,7 +27,7 @@ Outlast twenty bot rivals in a free for all: twelve rookies, six regulars, and t
 | Right mouse button / hold | Aim with reduced spread and a closer camera |
 | 1 / 2 / 3 | Equip M4A1 / AK-47 / pump shotgun |
 | Shift | Sprint |
-| Space | Jump |
+| Space | Leave the bus / jump on the ground |
 | R | Reload |
 | Q | Place a wooden wall (8 per match) |
 | H | Heal with a medkit (2.4 seconds; damage interrupts) |

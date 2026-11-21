@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DROP, busPositionAt, findLandingSpot, createDropBus, createGlider } from './drop.js';
 import { WEAPONS, createWeaponModel } from './weapons.js';
 import { chooseTarget, spreadDirection } from './combat.js';
 import { MAP, STORM, BOT_ROSTER, MINIMAP_SCALE, stormRadiusAt, stormTimeRemaining } from './match.js';
@@ -94,6 +95,9 @@ function equipActor(actor,index){
 }
 const player=character('#697f65',true);player.root.position.set(0,groundY(0,28),28);
 player.label='YOU';equipActor(player,0);
+const dropBus=createDropBus();scene.add(dropBus);
+const glider=createGlider();player.root.add(glider);
+let dropPhase='ground',busElapsed=0;
 const BOT_SKILLS=[
   {name:'ROOKIE',spread:.15,pause:1.15,reaction:1.4,speed:.7},
   {name:'REGULAR',spread:.075,pause:.65,reaction:.85,speed:.85},
@@ -146,7 +150,7 @@ function updateHUD(){
   });
 }
 function switchWeapon(index){
-  if(index===weaponIndex||index<0||index>=WEAPONS.length)return;
+  if(dropPhase!=='ground'||index===weaponIndex||index<0||index>=WEAPONS.length)return;
   loadout[weaponIndex]={ammo,reserve};weaponIndex=index;
   ({ammo,reserve}=loadout[index]);reloadTimer=0;healTimer=0;equipActor(player,index);
   // Switching cannot bypass the cooldown of a previously fired weapon.
@@ -167,6 +171,67 @@ function showOverlay(label,title,description,ended=false){$('overlay-label').tex
 function pause(){if(state!=='playing')return;state='paused';mouseDown=false;aiming=false;showOverlay('TAKE A BREATHER','Paused.','Your island will be right here.');document.exitPointerLock?.();}
 function finish(won){state='ended';mouseDown=false;document.exitPointerLock?.();showOverlay(won?'LAST ONE STANDING':'BACK TO THE LOBBY?',won?'Victory.':'Next time.',`${kills} eliminations · ${Math.floor(elapsed/60)}m ${Math.floor(elapsed%60)}s survived. ${won?'The Lowlands are yours.':'Every drop is a fresh start.'}`,true);tone(won?800:160,.6);}
 function resume(){canvas.requestPointerLock?.();state='playing';$('overlay').classList.add('hidden');}
+function beginDrop(){
+  dropPhase='bus';busElapsed=0;vertical=0;grounded=false;mouseDown=false;aiming=false;
+  hitTimer=damageTimer=0;camera.fov=56;camera.updateProjectionMatrix();
+  $('hitmarker').style.opacity=0;$('damage-flash').style.opacity=0;
+  player.root.visible=false;player.gun.visible=false;glider.visible=false;dropBus.visible=true;
+  for(const bot of bots)bot.root.visible=false;
+  $('drop-panel').classList.remove('hidden');$('drop-jump').classList.remove('hidden');
+  $('crosshair').classList.add('hidden');$('storm-warning').classList.add('hidden');
+  $('notification').textContent='';noticeTimer=0;
+  $('storm-time').textContent='1:30';
+}
+function ejectFromBus(){
+  if(dropPhase!=='bus'||state!=='playing')return;
+  dropPhase='gliding';player.root.position.copy(dropBus.position);player.root.position.y-=3;
+  player.root.visible=true;glider.visible=true;pitch=-.35;
+  for(const bot of bots)bot.root.visible=true;
+  $('drop-jump').classList.add('hidden');tone(350,.2,'triangle',.03);
+  mouseDown=false;keys.delete('Space');
+}
+$('drop-jump').onclick=ejectFromBus;
+function updateDrop(dt){
+  busElapsed+=dt;
+  const route=busPositionAt(busElapsed);dropBus.position.set(route.x,route.y,route.z);
+  dropBus.rotation.z=Math.sin(busElapsed*1.3)*.025;
+  if(dropPhase==='bus'){
+    player.root.position.copy(dropBus.position);
+    $('drop-title').textContent='YOUR RIDE TO THE LOWLANDS';
+    $('drop-detail').textContent=`Choose your landing spot · Auto-drop in ${Math.max(0,Math.ceil(DROP.rideTime-busElapsed))}s`;
+    camera.position.set(route.x+24,route.y+15,route.z+33);
+    camera.lookAt(route.x,route.y+4,route.z-8);
+    if(busElapsed>=DROP.rideTime)ejectFromBus();
+  }else{
+    const p=player.root.position;
+    let f=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'));
+    let r=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'));
+    const length=Math.hypot(f,r)||1;f/=length;r/=length;
+    p.x+=(-Math.sin(yaw)*f+Math.cos(yaw)*r)*DROP.steerSpeed*dt;
+    p.z+=(-Math.cos(yaw)*f-Math.sin(yaw)*r)*DROP.steerSpeed*dt;
+    const radius=Math.hypot(p.x,p.z),limit=MAP.radius-18;
+    if(radius>limit){p.x*=limit/radius;p.z*=limit/radius;}
+    p.y-=DROP.descentSpeed*dt;player.root.rotation.y=yaw;
+    $('drop-title').textContent='GLIDE INTO THE FIGHT';
+    $('drop-detail').textContent=`WASD to steer · ${Math.max(0,Math.ceil(p.y-groundY(p.x,p.z)))}m to ground · Weapons unlock on landing`;
+    player.legs.forEach((leg,i)=>leg.rotation.x=Math.sin(busElapsed*2+i)*.12);
+    player.arms.forEach(arm=>arm.rotation.x=2.6);
+    const desired=new THREE.Vector3(p.x+Math.sin(yaw)*9+Math.cos(yaw)*2,p.y+6,p.z+Math.cos(yaw)*9-Math.sin(yaw)*2);
+    camera.position.lerp(desired,Math.min(1,dt*9));
+    camera.lookAt(p.x-Math.sin(yaw)*15,p.y-7,p.z-Math.cos(yaw)*15);
+    if(p.y<=groundY(p.x,p.z)+3){
+      const spot=findLandingSpot(p.x,p.z,(x,z)=>canStand(x,z,groundY(x,z)));
+      if(spot){
+        p.set(spot.x,groundY(spot.x,spot.z),spot.z);dropPhase='ground';vertical=0;grounded=true;
+        glider.visible=false;dropBus.visible=false;player.gun.visible=true;keys.delete('Space');
+        $('drop-panel').classList.add('hidden');$('crosshair').classList.remove('hidden');
+        camera.fov=56;updateCamera(1);notice('TOUCHDOWN · THE MATCH IS ON\nStay inside the circle. Outlast every rival.');
+      }else p.y=groundY(p.x,p.z)+4;
+    }
+  }
+  storm.scale.set(STORM.initial,1,STORM.initial);ring.scale.set(STORM.initial,STORM.initial,1);
+  drawMap();
+}
 function start(){health=100;shield=50;meds=2;walls=8;kills=0;elapsed=0;stormRadius=STORM.initial;fireCooldown=reloadTimer=healTimer=0;yaw=0;pitch=-.1;vertical=0;grounded=true;keys.clear();mouseDown=false;aiming=false;weaponIndex=0;
 WEAPONS.forEach((w,i)=>loadout[i]={ammo:w.capacity,reserve:w.reserve});({ammo,reserve}=loadout[0]);equipActor(player,0);
 player.alive=true;player.health=100;player.root.position.set(0,groundY(0,28),28);player.root.visible=true;player.root.rotation.y=0;
@@ -175,19 +240,19 @@ $('kill-feed').replaceChildren();
 for(const p of pickups){p.active=true;p.g.visible=true;}
 for(const child of [...buildGroup.children]){child.traverse(o=>o.geometry?.dispose());buildGroup.remove(child);}
 for(const ob of builtObstacles){const i=obstacles.indexOf(ob);if(i!==-1)obstacles.splice(i,1);}builtObstacles=[];
-$('menu').classList.add('hidden');$('menu-footer').classList.add('hidden');$('island-note').classList.add('hidden');$('hud').classList.remove('hidden');document.body.classList.add('playing');resume();notice('FREE FOR ALL · EVERY RIVAL FOR THEMSELVES\n1 / 2 / 3 · Switch weapons    RIGHT CLICK · Aim');updateHUD();updateCamera(1);}
+$('menu').classList.add('hidden');$('menu-footer').classList.add('hidden');$('island-note').classList.add('hidden');$('hud').classList.remove('hidden');document.body.classList.add('playing');beginDrop();resume();updateHUD();updateDrop(0);}
 $('play').onclick=start;$('resume').onclick=resume;$('restart').onclick=start;
 $('help').onclick=()=>{if(state==='playing')pause();else if(state==='menu')showOverlay('KNOW YOUR MOVES','Ready to drop?','Free for all: rivals fight each other, too. Outlast everyone and stay ahead of the storm.',true);};
 document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement!==canvas&&state==='playing')pause();});
 document.addEventListener('pointerlockerror',()=>{if(state==='playing'){state='paused';showOverlay('MOUSE CAPTURE UNAVAILABLE','One more click.','Allow mouse capture in your browser, then click Back to it.');}});
 window.addEventListener('blur',()=>{keys.clear();pause();});
 document.addEventListener('mousemove',e=>{if(state==='playing'&&document.pointerLockElement===canvas){yaw-=e.movementX*.0024;pitch=THREE.MathUtils.clamp(pitch-e.movementY*.002,-.78,.65);}});
-document.addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat||state!=='playing')return;if(e.code==='KeyR')reload();if(e.code==='KeyQ')build();if(e.code==='KeyH')heal();if(/^Digit[123]$/.test(e.code))switchWeapon(Number(e.code.slice(-1))-1);if(e.code==='Escape')pause();});
+document.addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat||state!=='playing')return;if(e.code==='Escape'){pause();return;}if(e.code==='Space'&&dropPhase==='bus'){ejectFromBus();keys.delete('Space');return;}if(dropPhase!=='ground')return;if(e.code==='KeyR')reload();if(e.code==='KeyQ')build();if(e.code==='KeyH')heal();if(/^Digit[123]$/.test(e.code))switchWeapon(Number(e.code.slice(-1))-1);if(e.code==='Escape')pause();});
 document.addEventListener('keyup',e=>keys.delete(e.code));
-canvas.addEventListener('mousedown',e=>{if(state!=='playing')return;if(e.button===0)mouseDown=true;if(e.button===2)aiming=true;});document.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)aiming=false;});canvas.addEventListener('contextmenu',e=>e.preventDefault());
-function reload(){if(reloadTimer||ammo===WEAPONS[weaponIndex].capacity||reserve<=0||healTimer)return;reloadTimer=WEAPONS[weaponIndex].reload;updateHUD();tone(200,.12,'triangle');}
-function heal(){if(healTimer||health>=100||meds<1||reloadTimer)return;healTimer=2.4;notice('PATCHING UP… 2.4s');updateHUD();}
-function build(){if(walls<=0){notice('NO BUILD MATERIALS LEFT');return;}const p=player.root.position;const x=p.x-Math.sin(yaw)*4,z=p.z-Math.cos(yaw)*4;if(obstacles.some(o=>Math.abs(x-o.x)<o.w/2+2&&Math.abs(z-o.z)<o.d/2+1)){notice('CANNOT BUILD HERE');return;}const g=new THREE.Group();g.position.set(x,groundY(x,z),z);g.rotation.y=yaw;buildGroup.add(g);for(let i=0;i<7;i++)box(.52,3.2,.22,i%2?'#9f8055':'#b59865',(i-3)*.55,1.6,0,g);for(const y of [.5,2.5])box(4,.16,.3,'#77674c',0,y,.1,g);const ob={x,z,w:Math.abs(Math.cos(yaw))*4+Math.abs(Math.sin(yaw))*.4,d:Math.abs(Math.sin(yaw))*4+Math.abs(Math.cos(yaw))*.4,h:3.2,y:groundY(x,z)};obstacles.push(ob);builtObstacles.push(ob);walls--;tone(120,.12,'square');updateHUD();}
+canvas.addEventListener('mousedown',e=>{if(state!=='playing'||dropPhase!=='ground')return;if(e.button===0)mouseDown=true;if(e.button===2)aiming=true;});document.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;if(e.button===2)aiming=false;});canvas.addEventListener('contextmenu',e=>e.preventDefault());
+function reload(){if(dropPhase!=='ground'||reloadTimer||ammo===WEAPONS[weaponIndex].capacity||reserve<=0||healTimer)return;reloadTimer=WEAPONS[weaponIndex].reload;updateHUD();tone(200,.12,'triangle');}
+function heal(){if(dropPhase!=='ground'||healTimer||health>=100||meds<1||reloadTimer)return;healTimer=2.4;notice('PATCHING UP… 2.4s');updateHUD();}
+function build(){if(dropPhase!=='ground')return;if(walls<=0){notice('NO BUILD MATERIALS LEFT');return;}const p=player.root.position;const x=p.x-Math.sin(yaw)*4,z=p.z-Math.cos(yaw)*4;if(obstacles.some(o=>Math.abs(x-o.x)<o.w/2+2&&Math.abs(z-o.z)<o.d/2+1)){notice('CANNOT BUILD HERE');return;}const g=new THREE.Group();g.position.set(x,groundY(x,z),z);g.rotation.y=yaw;buildGroup.add(g);for(let i=0;i<7;i++)box(.52,3.2,.22,i%2?'#9f8055':'#b59865',(i-3)*.55,1.6,0,g);for(const y of [.5,2.5])box(4,.16,.3,'#77674c',0,y,.1,g);const ob={x,z,w:Math.abs(Math.cos(yaw))*4+Math.abs(Math.sin(yaw))*.4,d:Math.abs(Math.sin(yaw))*4+Math.abs(Math.cos(yaw))*.4,h:3.2,y:groundY(x,z)};obstacles.push(ob);builtObstacles.push(ob);walls--;tone(120,.12,'square');updateHUD();}
 function canStand(x,z,feet){if(Math.hypot(x,z)>MAP.radius)return false;return !obstacles.some(o=>Math.abs(x-o.x)<o.w/2+.4&&Math.abs(z-o.z)<o.d/2+.4&&feet<o.y+o.h);}
 function moveActor(actor,dx,dz){const p=actor.root.position;if(canStand(p.x+dx,p.z,p.y))p.x+=dx;if(canStand(p.x,p.z+dz,p.y))p.z+=dz;}
 function coverObjects(){return [terrain,...decor.children,...buildGroup.children];}
@@ -250,7 +315,7 @@ function resolveShot(shooter,from,forward,spec,spread){
   }
 }
 function shoot(){
-  if(fireCooldown||reloadTimer||healTimer)return;
+  if(dropPhase!=='ground'||fireCooldown||reloadTimer||healTimer)return;
   if(ammo<=0){reload();return;}
   const spec=WEAPONS[weaponIndex];ammo--;fireCooldown=spec.interval;
   tone(spec.frequency+random()*15,.1,'sawtooth',spec.pellets>1?.07:.045);
@@ -335,7 +400,7 @@ function updateBots(dt,playerMoving){
     if(Math.hypot(bp.x,bp.z)>stormRadius)damageActor(bot,dt*7,null,true);
   }
 }
-function update(dt){elapsed+=dt;fireCooldown=Math.max(0,fireCooldown-dt);animateWeapon(player,dt);hitTimer=Math.max(0,hitTimer-dt);damageTimer=Math.max(0,damageTimer-dt);$('hitmarker').style.opacity=hitTimer>0?1:0;$('damage-flash').style.opacity=damageTimer*1.4;
+function update(dt){if(dropPhase!=='ground'){updateDrop(dt);return;}elapsed+=dt;fireCooldown=Math.max(0,fireCooldown-dt);animateWeapon(player,dt);hitTimer=Math.max(0,hitTimer-dt);damageTimer=Math.max(0,damageTimer-dt);$('hitmarker').style.opacity=hitTimer>0?1:0;$('damage-flash').style.opacity=damageTimer*1.4;
 if(reloadTimer>0){reloadTimer-=dt;if(reloadTimer<=0){const take=Math.min(WEAPONS[weaponIndex].capacity-ammo,reserve);ammo+=take;reserve-=take;reloadTimer=0;updateHUD();}}
 if(healTimer>0){healTimer-=dt;if(healTimer<=0){meds--;health=Math.min(100,health+60);player.health=health;healTimer=0;notice('+60 HEALTH');tone(600,.2);updateHUD();}}
 if(noticeTimer>0){noticeTimer-=dt;$('notification').style.opacity=Math.min(noticeTimer,1);}else $('notification').style.opacity=0;
